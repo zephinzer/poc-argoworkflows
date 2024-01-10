@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: {{ include "argo-samples.fullname" . }}-cron-workflow
+  labels:
+    workflows.argoproj.io/archive-strategy: "false"
+    {{- include "argo-samples.labels" . | nindent 4 }}
+  annotations:
+    workflows.argoproj.io/description: |
+      Sample cron workflow
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: "Replace"
+  startingDeadlineSeconds: 0
+  workflowSpec:
+    entrypoint: hello
+    templates:
+    - name: hello
+      container:
+        image: alpine:3.18.5
+        command: [sh, -c]
+        args: ["echo 'hello from cron workflow'; sleep 10"]

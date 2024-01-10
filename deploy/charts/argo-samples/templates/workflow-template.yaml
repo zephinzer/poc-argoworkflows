@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: {{ include "argo-samples.fullname" . }}-workflow-template
+  labels:
+    {{- include "argo-samples.labels" . | nindent 4 }}
+spec:
+  serviceAccountName: default
+  templates:
+    - name: hello-world
+      container:
+        image: alpine:3.18.5
+        command: [sh, -c]
+        args: ["echo \"{{ "{{" }} workflow.parameters.greeting {{ "}}" }} from workflow template\""]

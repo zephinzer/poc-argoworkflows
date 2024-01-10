@@ -1,0 +1,9 @@
+dependencies:
+- name: argo-events
+  repository: https://argoproj.github.io/argo-helm
+  version: 2.4.1
+- name: argo-workflows
+  repository: https://argoproj.github.io/argo-helm
+  version: 0.40.3
+digest: sha256:85a58bc2bac6c26a02b5234829406f3588396428a0e42bfaa91e7087cc0f761d
+generated: "2024-01-10T15:24:51.93126695+08:00"

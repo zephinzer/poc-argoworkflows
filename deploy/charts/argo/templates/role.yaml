@@ -1,0 +1,45 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "argo.fullname" . }}-default
+  labels:
+    {{- include "argo.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources:
+    - pods
+    - pods/log
+    verbs:
+    - get
+    - list
+    - logs
+    - patch
+    - watch
+  - apiGroups:
+    - argoproj.io
+    resources:
+    - workflowartifactgctasks
+    - workflows
+    - workflowtaskresults
+    verbs:
+    - get
+    - patch
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "argo.fullname" . }}-default
+  labels:
+    {{- include "argo.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "argo.fullname" . }}-default
+subjects:
+- kind: ServiceAccount
+  name: argo-argo-workflows-server
+  namespace: {{ .Release.Namespace }}
+- kind: ServiceAccount
+  name: default
+  namespace: {{ .Release.Namespace }}

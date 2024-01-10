@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "argo-samples.serviceAccountName" . }}-sensor
+  labels:
+    {{- include "argo-samples.labels" . | nindent 4 }}
+
+---
+
+# Similarly you can use a ClusterRole and ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "argo-samples.fullname" . }}-sensor
+  labels:
+    {{- include "argo-samples.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - argoproj.io
+    verbs:
+      - "*"
+    resources:
+      - workflows
+      - workflowtemplates
+      - cronworkflows
+      - clusterworkflowtemplates
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "argo-samples.fullname" . }}-sensor
+  labels:
+    {{- include "argo-samples.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "argo-samples.fullname" . }}-sensor
+subjects:
+- kind: ServiceAccount
+  name: {{ include "argo-samples.fullname" . }}-sensor
+
+---
+
+apiVersion: argoproj.io/v1alpha1
+kind: EventSource
+metadata:
+  name: {{ include "argo-samples.fullname" . }}-sensor-webhook
+  labels:
+    {{- include "argo-samples.labels" . | nindent 4 }}
+spec:
+  eventBusName: argo-default
+  service:
+    ports:
+    - port: 12000
+      targetPort: 12000
+  webhook:
+    example:
+      port: "12000"
+      endpoint: /example
+      method: POST
+---
+
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: {{ include "argo-samples.fullname" . }}-sensor-webhook
+  labels:
+    {{- include "argo-samples.labels" . | nindent 4 }}
+spec:
+  template:
+    serviceAccountName: {{ include "argo-samples.serviceAccountName" . }}-sensor
+  dependencies:
+  - name: webhook-trigger
+    eventSourceName: {{ include "argo-samples.fullname" . }}-sensor-webhook
+    eventName: example
+  eventBusName: argo-default
+  triggers:
+  - retryStrategy:
+      limit: '10'
+    template:
+      name: hello
+      argoWorkflow:
+        operation: submit
+        source:
+          resource:
+            apiVersion: argoproj.io/v1alpha1
+            kind: Workflow
+            metadata:
+              name: {{ include "argo-samples.fullname" . }}-sensor-webhook-{{ now | date "20060102150405" }}
+              labels:
+                workflows.argoproj.io/pod-name-format: v2
+              annotations:
+                workflows.argoproj.io/description: |
+                  A sample webhook-triggered workflow
+            spec:
+              entrypoint: hello
+              arguments:
+                parameters:
+                - name: message
+                  value: hello world
+              templates:
+              - name: hello
+                steps:
+                - - name: step-1-from-local
+                    template: local
+                - - name: step-2-from-template
+                    templateRef:
+                      name: {{ include "argo-samples.fullname" . }}-workflow-template
+              - name: local
+                inputs:
+                  parameters:
+                  - name: message
+                container:
+                  image: docker/whalesay:latest
+                  command: [sh, -c]
+                  args:
+                    - |
+                      echo {{ "{{" }}inputs.parameters.message{{ "}}" }}
+        parameters:
+        - src:
+            dependencyName: webhook-trigger
+            dataKey: body
+          dest: spec.arguments.parameters.0.value

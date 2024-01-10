@@ -1,0 +1,9 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventBus
+metadata:
+  name: {{ include "argo.fullname" . }}-default
+  labels:
+    {{- include "argo.labels" . | nindent 4 }}
+spec:
+  nats:
+    native: {}

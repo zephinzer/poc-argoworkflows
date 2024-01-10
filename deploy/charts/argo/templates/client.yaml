@@ -1,0 +1,89 @@
+{{- if eq .Values.config.localClient.enabled true }}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "argo.fullname" . }}-system-client
+  labels:
+    {{- include "argo.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "argo.fullname" . }}-system-client
+  labels:
+    {{- include "argo.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - events
+    - pods
+    - pods/log
+    verbs:
+    - get
+    - list
+    - logs
+    - update
+    - watch
+  - apiGroups:
+    - argoproj.io
+    resources:
+    - workflows
+    verbs:
+    - create
+  - apiGroups:
+    - argoproj.io
+    resources:
+    - clusterworkflowtemplates
+    - cronworkflows
+    - eventsources
+    - sensors
+    - workflowartifactgctasks
+    - workfloweventbindings
+    - workflows
+    - workflowtaskresults
+    - workflowtasksets
+    - workflowtemplates
+    verbs:
+    - get
+    - list
+    - update
+    - watch
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "argo.fullname" . }}-system-client
+  labels:
+    {{- include "argo.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "argo.fullname" . }}-system-client
+subjects:
+- kind: ServiceAccount
+  name: {{ include "argo.fullname" . }}-system-client
+  namespace: {{ .Release.Namespace }}
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "argo.fullname" . }}-system-client
+  labels:
+    {{- include "argo.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/service-account.name: {{ include "argo.fullname" . }}-system-client
+type: kubernetes.io/service-account-token
+
+{{ end }}

@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  # this allows the template to be triggered on every deploy
+  name: {{ include "argo-samples.fullname" . }}-workflow-{{ now | date "20060102150405" }}
+  labels:
+    workflows.argoproj.io/pod-name-format: v2
+    {{- include "argo-samples.labels" . | nindent 4 }}
+  annotations:
+    workflows.argoproj.io/description: |
+      A sample workflow that implements its own self-contained templates,
+      a namespaced workflow template, and a cluster-scoped workflow template
+spec:
+  entrypoint: hello
+  arguments:
+    parameters:
+    - name: greeting
+      value: hello
+  templates:
+  - name: hello
+    steps:
+    - - name: step-1-from-local
+        template: local
+    - - name: step-2-from-template
+        templateRef:
+          name: {{ include "argo-samples.fullname" . }}-workflow-template
+          template: hello-world
+    - - name: step-3-from-cluster-template
+        templateRef:
+          name: {{ include "argo-samples.fullname" . }}-cluster-workflow-template
+          template: hello-world
+          clusterScope: true
+  - name: local
+    retryStrategy:
+      limit: '10'
+    container:
+      image: alpine:3.18.5
+      command: [sh, -c]
+      args:
+      - |
+        if [ $((RANDOM % 10)) -gt 3 ]; then
+          echo 'failed' && exit 1;
+        else
+          echo {{ "{{" }} workflow.parameters.greeting {{ "}}" }} from local template;
+        fi;
