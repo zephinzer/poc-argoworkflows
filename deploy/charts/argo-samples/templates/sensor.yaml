@@ -65,61 +65,116 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Sensor
 metadata:
-  name: {{ include "argo-samples.fullname" . }}-sensor-webhook
+  name: {{ include "argo-samples.fullname" . }}-sensor-webhook-v2
   labels:
     {{- include "argo-samples.labels" . | nindent 4 }}
 spec:
+  eventBusName: argo-default
   template:
     serviceAccountName: {{ include "argo-samples.serviceAccountName" . }}-sensor
   dependencies:
-  - name: webhook-trigger
-    eventSourceName: {{ include "argo-samples.fullname" . }}-sensor-webhook
-    eventName: example
-  eventBusName: argo-default
+    - name: webhook-trigger
+      eventSourceName: {{ include "argo-samples.fullname" . }}-sensor-webhook
+      eventName: example
   triggers:
-  - retryStrategy:
-      limit: '10'
-    template:
-      name: hello
-      argoWorkflow:
-        operation: submit
-        source:
-          resource:
-            apiVersion: argoproj.io/v1alpha1
-            kind: Workflow
-            metadata:
-              name: {{ include "argo-samples.fullname" . }}-sensor-webhook-{{ now | date "20060102150405" }}
-              labels:
-                workflows.argoproj.io/pod-name-format: v2
-              annotations:
-                workflows.argoproj.io/description: |
-                  A sample webhook-triggered workflow
-            spec:
-              entrypoint: hello
-              arguments:
-                parameters:
-                - name: message
-                  value: hello world
-              templates:
-              - name: hello
-                steps:
-                - - name: step-1-from-local
-                    template: local
-                - - name: step-2-from-template
-                    templateRef:
-                      name: {{ include "argo-samples.fullname" . }}-workflow-template
-              - name: local
-                inputs:
+    - template:
+        name: argo-workflow-trigger
+        argoWorkflow:
+          operation: submit
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                name: {{ include "argo-samples.fullname" . }}-sensor-webhook-{{ now | date "20060102150405" }}
+                labels:
+                  workflows.argoproj.io/pod-name-format: v2
+                annotations:
+                  workflows.argoproj.io/description: |
+                    A sample webhook-triggered workflow
+              spec:
+                entrypoint: hello
+                arguments:
                   parameters:
                   - name: message
-                container:
-                  image: docker/whalesay:latest
-                  command: [sh, -c]
-                  args:
-                    - |
-                      echo {{ "{{" }}inputs.parameters.message{{ "}}" }}
-        parameters:
-        - src:
-            dependencyName: webhook-trigger
-            dataKey: body
-          dest: spec.arguments.parameters.0.value
+                    value: hello world
+                templates:
+                - name: hello
+                  steps:
+                  - - name: step-1-from-local
+                      arguments:
+                        parameters:
+                        - name: message
+                          value: hello world
+                      template: whalesay
+                  # - - name: step-2-from-template
+                  #     templateRef:
+                  #       name: {{ include "argo-samples.fullname" . }}-workflow-template
+                - name: whalesay
+                  inputs:
+                    parameters:
+                      - name: message
+                  container:
+                    image: docker/whalesay:latest
+                    command: [cowsay]
+                    args:
+                      - |
+                        {{ "{{" }} inputs.parameters.message {{ "}}" }}
+          parameters:
+            - src:
+                dependencyName: webhook-trigger
+                dataKey: body
+              dest: spec.arguments.parameters.0.value
+
+  # dependencies:
+  # - name: webhook-trigger
+  #   eventSourceName: {{ include "argo-samples.fullname" . }}-sensor-webhook
+  #   eventName: example
+  # eventBusName: argo-default
+  # triggers:
+  # - retryStrategy:
+  #     limit: '10'
+  #   template:
+  #     name: {{ include "argo-samples.fullname" . }}-sensor-webhook-{{ now | date "20060102150405" }}
+  #     argoWorkflow:
+  #       operation: submit
+  #       source:
+  #         resource:
+  #           apiVersion: argoproj.io/v1alpha1
+  #           kind: Workflow
+  #           metadata:
+  #             name: {{ include "argo-samples.fullname" . }}-sensor-webhook-{{ now | date "20060102150405" }}
+  #             labels:
+  #               workflows.argoproj.io/pod-name-format: v2
+  #             annotations:
+  #               workflows.argoproj.io/description: |
+  #                 A sample webhook-triggered workflow
+  #           spec:
+  #             entrypoint: hello
+  #             arguments:
+  #               parameters:
+  #               - name: message
+  #                 value: hello world
+  #             templates:
+  #             - name: hello
+  #               steps:
+  #               - - name: step-1-from-local
+  #                   template: local
+  #               - - name: step-2-from-template
+  #                   templateRef:
+  #                     name: {{ include "argo-samples.fullname" . }}-workflow-template
+  #             - name: local
+  #               inputs:
+  #                 parameters:
+  #                 - name: message
+  #               container:
+  #                 image: docker/whalesay:latest
+  #                 command: [sh, -c]
+  #                 args:
+  #                   - |
+  #                     echo {{ "{{" }}inputs.parameters.message{{ "}}" }}
+  #       parameters:
+  #       - src:
+  #           dependencyName: webhook-trigger
+  #           dataKey: body
+  #         dest: spec.arguments.parameters.0.value
